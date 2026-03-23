@@ -27,6 +27,14 @@
   #counter {
     font-size: 4rem;
     pointer-events: none;
+    position: absolute;
+    z-index: 10;
+  }
+
+  .split-mode #counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .btn {
@@ -52,6 +60,40 @@
   #settingsBtn {
     bottom: 15px;
     right: 15px;
+  }
+
+  .split-container {
+    display: none;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .split-mode .split-container {
+    display: flex;
+  }
+
+  .tap-side {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: white;
+    pointer-events: auto;
+    transition: background 0.1s ease;
+  }
+
+  .tap-side.glow {
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  #leftSide {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.3), transparent);
+  }
+
+  #rightSide {
+    background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.3));
   }
 
   #modal {
@@ -95,15 +137,32 @@
 
 <div id="app">
   <div id="counter">0</div>
+  <div class="split-container">
+    <div id="leftSide" class="tap-side">-</div>
+    <div id="rightSide" class="tap-side">+</div>
+  </div>
   <button id="resetBtn" class="btn">Reset</button>
-  <button id="settingsBtn" class="btn">⚙</button>
+  <button id="settingsBtn" class="btn">Settings</button>
 </div>
 
 <div id="modal">
   <div id="modalContent">
-    <h3>Auto Reset Limit</h3>
-    <input type="number" id="limitInput" placeholder="Enter number (0 = off)" />
-    <br>
+    <h3>Settings</h3>
+    <label>
+      Starting Value:
+      <input type="number" id="countInput" placeholder="Enter starting number" />
+    </label>
+    <br><br>
+    <label>
+      Auto Reset Limit:
+      <input type="number" id="limitInput" placeholder="Enter number (0 = off)" />
+    </label>
+    <br><br>
+    <label>
+      <input type="checkbox" id="splitModeToggle" />
+      Split Mode (Life Counter)
+    </label>
+    <br><br>
     <button id="saveLimit">Save</button>
     <button id="closeModal">Close</button>
   </div>
@@ -112,17 +171,32 @@
 <script>
 let count = 0;
 let limit = 0;
+let splitMode = false;
+let lastTapTime = 0;
+const TAP_DELAY = 100;
 
 const counterEl = document.getElementById('counter');
 const app = document.getElementById('app');
 const resetBtn = document.getElementById('resetBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const modal = document.getElementById('modal');
+const countInput = document.getElementById('countInput');
 const limitInput = document.getElementById('limitInput');
+const splitModeToggle = document.getElementById('splitModeToggle');
+const leftSide = document.getElementById('leftSide');
+const rightSide = document.getElementById('rightSide');
 
+
+if (localStorage.getItem('startingCount')) {
+  count = parseInt(localStorage.getItem('startingCount'));
+}
 
 if (localStorage.getItem('tapLimit')) {
   limit = parseInt(localStorage.getItem('tapLimit'));
+}
+
+if (localStorage.getItem('splitMode')) {
+  splitMode = localStorage.getItem('splitMode') === 'true';
 }
 
 function updateDisplay() {
@@ -135,9 +209,26 @@ function vibrateFeedback() {
   }
 }
 
-function increment() {
-  count++;
+function canTap() {
+  const now = Date.now();
+  if (now - lastTapTime < TAP_DELAY) {
+    return false;
+  }
+  lastTapTime = now;
+  return true;
+}
 
+function showGlow(element) {
+  element.classList.add('glow');
+  setTimeout(() => {
+    element.classList.remove('glow');
+  }, 100);
+}
+
+function increment() {
+  if (!canTap()) return;
+  
+  count++;
   vibrateFeedback();
 
   if (limit > 0 && count > limit) {
@@ -147,14 +238,58 @@ function increment() {
   updateDisplay();
 }
 
+function decrement() {
+  if (!canTap()) return;
+  
+  count--;
+  vibrateFeedback();
+
+  if (limit > 0 && count < -limit) {
+    count = 0;
+  }
+
+  updateDisplay();
+}
+
+function updateSplitMode() {
+  if (splitMode) {
+    app.classList.add('split-mode');
+  } else {
+    app.classList.remove('split-mode');
+  }
+}
+
 app.addEventListener('click', (e) => {
   if (e.target.classList.contains('btn')) return;
+  if (splitMode) return;
   increment();
 });
 
 
 app.addEventListener('touchstart', (e) => {
   if (e.target.classList.contains('btn')) return;
+  if (splitMode) return;
+  increment();
+});
+
+
+leftSide.addEventListener('click', () => {
+  showGlow(leftSide);
+  decrement();
+});
+
+leftSide.addEventListener('touchstart', () => {
+  showGlow(leftSide);
+  decrement();
+});
+
+rightSide.addEventListener('click', () => {
+  showGlow(rightSide);
+  increment();
+});
+
+rightSide.addEventListener('touchstart', () => {
+  showGlow(rightSide);
   increment();
 });
 
@@ -167,18 +302,29 @@ resetBtn.addEventListener('click', () => {
 
 settingsBtn.addEventListener('click', () => {
   modal.style.display = 'flex';
+  counterEl.style.display = 'none';
+  countInput.value = count;
   limitInput.value = limit || '';
+  splitModeToggle.checked = splitMode;
 });
 
 
 closeModal.onclick = () => {
   modal.style.display = 'none';
+  counterEl.style.display = '';
 };
 
 
 saveLimit.onclick = () => {
+  count = parseInt(countInput.value) || 0;
   limit = parseInt(limitInput.value) || 0;
+  splitMode = splitModeToggle.checked;
+  localStorage.setItem('startingCount', count);
   localStorage.setItem('tapLimit', limit);
+  localStorage.setItem('splitMode', splitMode);
+  updateSplitMode();
+  updateDisplay();
+  counterEl.style.display = '';
   modal.style.display = 'none';
 };
 
@@ -192,6 +338,7 @@ app.addEventListener('click', (e) => {
   }
 });
 
+updateSplitMode();
 updateDisplay();
 </script>
 
