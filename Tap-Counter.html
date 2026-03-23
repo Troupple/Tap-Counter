@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tap Counter</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    user-select: none;
+  }
+
+  #app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: white;
+  }
+
+  #counter {
+    font-size: 4rem;
+    pointer-events: none;
+  }
+
+  .btn {
+    position: absolute;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+  }
+
+  .btn:hover {
+    background: rgba(255,255,255,0.25);
+  }
+
+  #resetBtn {
+    bottom: 15px;
+    left: 15px;
+  }
+
+  #settingsBtn {
+    bottom: 15px;
+    right: 15px;
+  }
+
+  #modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #modalContent {
+    background: white;
+    color: black;
+    padding: 20px;
+    border-radius: 12px;
+    width: 300px;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  #modalContent input {
+    width: 100%;
+    padding: 8px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+  }
+
+  #modalContent button {
+    padding: 8px 12px;
+    margin: 5px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="counter">0</div>
+  <button id="resetBtn" class="btn">Reset</button>
+  <button id="settingsBtn" class="btn">⚙</button>
+</div>
+
+<div id="modal">
+  <div id="modalContent">
+    <h3>Auto Reset Limit</h3>
+    <input type="number" id="limitInput" placeholder="Enter number (0 = off)" />
+    <br>
+    <button id="saveLimit">Save</button>
+    <button id="closeModal">Close</button>
+  </div>
+</div>
+
+<script>
+let count = 0;
+let limit = 0;
+
+const counterEl = document.getElementById('counter');
+const app = document.getElementById('app');
+const resetBtn = document.getElementById('resetBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const modal = document.getElementById('modal');
+const limitInput = document.getElementById('limitInput');
+
+
+if (localStorage.getItem('tapLimit')) {
+  limit = parseInt(localStorage.getItem('tapLimit'));
+}
+
+function updateDisplay() {
+  counterEl.textContent = count;
+}
+
+function vibrateFeedback() {
+  if (navigator.vibrate) {
+    navigator.vibrate(20);
+  }
+}
+
+function increment() {
+  count++;
+
+  vibrateFeedback();
+
+  if (limit > 0 && count > limit) {
+    count = 0;
+  }
+
+  updateDisplay();
+}
+
+app.addEventListener('click', (e) => {
+  if (e.target.classList.contains('btn')) return;
+  increment();
+});
+
+
+app.addEventListener('touchstart', (e) => {
+  if (e.target.classList.contains('btn')) return;
+  increment();
+});
+
+
+resetBtn.addEventListener('click', () => {
+  count = 0;
+  updateDisplay();
+});
+
+
+settingsBtn.addEventListener('click', () => {
+  modal.style.display = 'flex';
+  limitInput.value = limit || '';
+});
+
+
+closeModal.onclick = () => {
+  modal.style.display = 'none';
+};
+
+
+saveLimit.onclick = () => {
+  limit = parseInt(limitInput.value) || 0;
+  localStorage.setItem('tapLimit', limit);
+  modal.style.display = 'none';
+};
+
+
+let touchHandled = false;
+app.addEventListener('touchstart', () => touchHandled = true);
+app.addEventListener('click', (e) => {
+  if (touchHandled) {
+    touchHandled = false;
+    return;
+  }
+});
+
+updateDisplay();
+</script>
+
+</body>
+</html>
