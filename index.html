@@ -172,8 +172,8 @@
 let count = 0;
 let limit = 0;
 let splitMode = false;
-let lastTapTime = 0;
-const TAP_DELAY = 100;
+let tapLocked = false;
+const TAP_DELAY = 500;
 
 const counterEl = document.getElementById('counter');
 const app = document.getElementById('app');
@@ -210,11 +210,11 @@ function vibrateFeedback() {
 }
 
 function canTap() {
-  const now = Date.now();
-  if (now - lastTapTime < TAP_DELAY) {
-    return false;
-  }
-  lastTapTime = now;
+  if (tapLocked) return false;
+  tapLocked = true;
+  setTimeout(() => {
+    tapLocked = false;
+  }, TAP_DELAY);
   return true;
 }
 
